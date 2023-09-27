@@ -13,6 +13,6 @@ contract TokenTest is Test {
     }
 
     function testName() public {
-        assertEq(t.name(), "Token");
+        assertEq(t.name(), "TestERC20");
     }
 }

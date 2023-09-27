@@ -7,6 +7,6 @@ describe("Token", function () {
     const token = await Token.deploy();
     await token.deployed();
 
-    expect(await token.name()).to.equal("Token");
+    expect(await token.name()).to.equal("TestERC20");
   });
 });

@@ -9,7 +9,7 @@ import "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 import {ERC20Permit, IERC20, ERC20} from "openzeppelin-contracts/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "./interfaces/IUniswapV2Factory.sol";
-import './interfaces/IUniswapV2Pair.sol';
+import "./interfaces/IUniswapV2Pair.sol";
 
 // reference: https://github.com/PaulRBerg/prb-math/tree/v4.0.1
 // https://soliditylang.org/blog/2021/09/27/user-defined-value-types/
@@ -19,6 +19,7 @@ import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/Safe
 
 import {IERC3156FlashLender} from "openzeppelin-contracts/contracts/interfaces/IERC3156FlashLender.sol";
 import {IERC3156FlashBorrower} from "openzeppelin-contracts/contracts/interfaces/IERC3156FlashBorrower.sol";
+
 
 /**
  * @title
@@ -46,11 +47,20 @@ import {IERC3156FlashBorrower} from "openzeppelin-contracts/contracts/interfaces
  * 1. ERC20 related, permit related  IUniswapV2Pair UniswapV2ERC20
  * 2. flashloan   swap delete param (bytes calldata data), delete IUniswapV2Callee interface and related functions
  * 
- * 
+ 
+ 
+    some small tips:
+ *  1. creat2: with arguments:
+ *  // bytes memory bytecode = type(UniswapV2Pair).creationCode;
+ *       bytes memory bytecode = abi.encodePacked(type(UniswapV2Pair).creationCode, abi.encode("Uniswap V2","UNI-V2"));
+ *  
+    2. consider the uniswap use typescipt for uint test, add the corrospending uint test cases
  * todo compare the differences between old and my current implementation for erc20 and
+
+
+    3. encode datas
  */
 contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
-
     // flash loan
     bytes32 public constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
     // uint256 public fee; //  1 == 0.01 %. should adjust based on the uniswap_v2 flashloan fee
@@ -89,7 +99,6 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
         _blockTimestampLast = blockTimestampLast;
     }
 
-
     //  string public constant name = 'Uniswap V2';
     // string public constant symbol = 'UNI-V2';
     constructor(string memory name, string memory symbol) ERC20(name, symbol) ERC20Permit(name) {
@@ -112,10 +121,9 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired TODO???
         if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
             // * never overflows, and + overflow is desired
-            // the orginal uniswap desgin: uint112=>uint256=> UD60x18(operations)=> uint 
+            // the orginal uniswap desgin: uint112=>uint256=> UD60x18(operations)=> uint
             price0CumulativeLast += unwrap(ud(uint256(_reserve1)) / ud(uint256(_reserve0))) * timeElapsed;
             price1CumulativeLast += unwrap(ud(uint256(_reserve0)) / ud(uint256(_reserve1))) * timeElapsed;
-
         }
         reserve0 = uint112(balance0);
         reserve1 = uint112(balance1);
@@ -436,8 +444,8 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
  *        8. forge build warn and errors checklist basic done
  *
  *
- *        9. when to use lock, as before 
- * 
+ *        9. when to use lock, as before
+ *
  *        10. inherit dig?? reference julisa's presenpeation
  */
 
@@ -479,7 +487,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
  *             6.
  *                 uint32 blockTimestamp = uint32(block.timestamp % 2**32);
  *
- *       
+ *
  *
  *             8. block.timestamp???
  *                     seconds units, why % 2**32
@@ -515,7 +523,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
  *                                 uint balance1Adjusted = balance1 * 1000 - amount1In * 3;
  *
  *              17. swap hidden logic
- * 
+ *
  *            . how to consider the swap logic in typical (non-flash) swap logic and flash logic.
  *
  *                 if (amount0Out > 0)  IERC20(_token0).safeTransfer(to, amount0Out); // optimistically transfer tokens  _safeTransfer(_token0, to, amount0Out);
@@ -542,14 +550,13 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
 // consider the precious problem?
 // the order, such as the execute order in mint, if changes, have some bad effects?
 
-
 // 3. the below threee params in one slot
 /**
  * uint112 private reserve0;           // uses single storage slot, accessible via getReserves
  *             uint112 private reserve1;           // uses single storage slot, accessible via getReserves
  *             uint32  private blockTimestampLast; // uses single storage slot, accessible via getReserves
  */
-//4. who can call the function, factory contract 
+//4. who can call the function, factory contract
 //5. how to use the lock?
 
 // 6. the differences
@@ -683,58 +690,57 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
  * }
  */
 
-
-
 /**
  * test should pay attentaions checklist
-
+ * 
  * 1. // todo, creat2 contract test
-   2. factory related?
-   3. 
-        //  abi.encodePacked(token0, token1)   address token0, address token1, the same as abi.encode(token0, token1)  address 160bits. 320bits?
-         //  abi.encodePacked, truncate the tail.
-
-   4. 
-                // question
-                //  abi.encodePacked(token0, token1)   address token0, address token1, the same as abi.encode(token0, token1)  address 160bits. 320bits?
-                //  abi.encodePacked, truncate the tail.
-
-                // 1. create2, pehaps have some same address? 2. sometime the same salt?
-                // 2.
-
-                // 2. quesiton 2, in my understanding, the below contract can't be executed, because the contract was contracted and in one transaction ,and the transaction not end.
-                /**
-                 *   assembly {
-                 *         pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
-                 *     }
-                 *     IUniswapV2Pair(pair).initialize(token0, token1);
-                 
-
-    5. check fee whether or not need?   
-
-    6. import adjust     
-
-    7. how to express fee?   
-
-    8. overflow updarre
-            overflow is desired 
-
-    9.klist check?
-        the math formula
-
-    10. some design considerations
-
-    11. fee two type fee
-        swap fee, protocol fee
-
-    12. 
-        scope for _token{0,1}, avoids stack too deep errors
-
-    13.doing important
-
-            3. when delete the flashswap, should adjust some logic,just one scenario, guarantee first send the tokens
-
-    14, reference the orginal test case
-
+ *    2. factory related?
+ *    3. 
+ *         //  abi.encodePacked(token0, token1)   address token0, address token1, the same as abi.encode(token0, token1)  address 160bits. 320bits?
+ *          //  abi.encodePacked, truncate the tail.
+ * 
+ *    4. 
+ *                 // question
+ *                 //  abi.encodePacked(token0, token1)   address token0, address token1, the same as abi.encode(token0, token1)  address 160bits. 320bits?
+ *                 //  abi.encodePacked, truncate the tail.
+ * 
+ *                 // 1. create2, pehaps have some same address? 2. sometime the same salt?
+ *                 // 2.
+ * 
+ *                 // 2. quesiton 2, in my understanding, the below contract can't be executed, because the contract was contracted and in one transaction ,and the transaction not end.
+ *                 /**
+ *   assembly {
+ *         pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
+ *     }
+ *     IUniswapV2Pair(pair).initialize(token0, token1);
+ *                  
+ * 
+ *     5. check fee whether or not need?   
+ * 
+ *     6. import adjust     
+ * 
+ *     7. how to express fee?   
+ * 
+ *     8. overflow updarre
+ *             overflow is desired 
+ * 
+ *     9.klist check?
+ *         the math formula
+ * 
+ *     10. some design considerations
+ * 
+ *     11. fee two type fee
+ *         swap fee, protocol fee
+ * 
+ *     12. 
+ *         scope for _token{0,1}, avoids stack too deep errors
+ * 
+ *     13.doing important
+ * 
+ *             3. when delete the flashswap, should adjust some logic,just one scenario, guarantee first send the tokens
+ * 
+ *     14, reference the orginal test case
+ * 
  *
- **/
+ *
+ */
