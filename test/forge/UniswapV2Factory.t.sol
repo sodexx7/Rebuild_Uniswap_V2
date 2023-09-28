@@ -2,10 +2,9 @@
 pragma solidity 0.8.21;
 
 import "forge-std/Test.sol";
-import "forge-std/Vm.sol";
-import "../src/UniswapV2Factory.sol";
+import "../../src/UniswapV2Factory.sol";
 
-import "../src/UniswapV2Pair.sol";
+import "../../src/UniswapV2Pair.sol";
 
 import "openzeppelin-contracts/contracts/utils/Create2.sol";
 
@@ -17,17 +16,17 @@ contract UniswapV2FactoryTest is Test {
 
     address[] public addresses = [address(0x1000000000000000000000000000000000000000),address(0x2000000000000000000000000000000000000000)];
 
-
+    address factory_hardhhat_address = address(0x5FbDB2315678afecb367f032d93F642f64180aa3);
 
     function setUp() public {
         uniswapV2Factory = new UniswapV2Factory(_feeToSetter);
         // console.log("uniswapV2Factory");
         // console.log(address(uniswapV2Factory));
+        
     }
 
 
     function testCreatPair() public {
-
         bytes memory bytecode = abi.encodePacked(type(UniswapV2Pair).creationCode, abi.encode("Uniswap V2","UNI-V2"));
         bytes32 salt = keccak256(abi.encodePacked(addresses[0],addresses[1]));
         console.log("abi.encodePacked(addresses[0],addresses[1])");
@@ -42,27 +41,34 @@ contract UniswapV2FactoryTest is Test {
         assertEq(precompileAddress,pariAddress);
 
 
-        // 
+        //  UniswapV2Pair test
         assertEq(UniswapV2Pair(pariAddress).name(),"Uniswap V2");
         assertEq(UniswapV2Pair(pariAddress).symbol(),"UNI-V2");
+        assertEq(UniswapV2Pair(pariAddress).factory(),address(uniswapV2Factory));
+        assertEq(UniswapV2Pair(pariAddress).token0(),addresses[0]);
+        assertEq(UniswapV2Pair(pariAddress).token1(),addresses[1]);
+        
+        
+        // getPair test
+        assertEq(uniswapV2Factory.getPair(addresses[0],addresses[1]),precompileAddress);
+        assertEq(uniswapV2Factory.getPair(addresses[1],addresses[0]),precompileAddress);
+
+        // allPairs test
+        assertEq(uniswapV2Factory.allPairs(0),precompileAddress);
+        assertEq(uniswapV2Factory.allPairsLength(),1);
 
         //0x5FbDB2315678afecb367f032d93F642f64180aa3 
 
-        address precompileAddress2 = getAddress(bytecode,salt,address(0x5FbDB2315678afecb367f032d93F642f64180aa3));
-        console.log("hardhat-create2 address");
-        console.log(precompileAddress2);
-
-
-
+        // address precompileAddress2 = getAddress(bytecode,salt,address(0x5FbDB2315678afecb367f032d93F642f64180aa3));
+        // console.log("hardhat-create2 address");
+        // console.log(precompileAddress2);
     }
 
-    function testCreatPair3() public {
-        address factory_hardhhat_address = address(0x5FbDB2315678afecb367f032d93F642f64180aa3);
-        deployCodeTo("UniswapV2Factory.sol", factory_hardhhat_address);
-        address pariAddress =  UniswapV2Factory(factory_hardhhat_address).createPair(addresses);
+    function testCreatPair3() private {
+
+        address pariAddress =  UniswapV2Factory(factory_hardhhat_address).createPair(addresses[0],addresses[1]);
         console.log("pariAddress");
         console.log(pariAddress);
-
     }
 
 
