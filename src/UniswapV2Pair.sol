@@ -20,6 +20,7 @@ import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/Safe
 import {IERC3156FlashLender} from "openzeppelin-contracts/contracts/interfaces/IERC3156FlashLender.sol";
 import {IERC3156FlashBorrower} from "openzeppelin-contracts/contracts/interfaces/IERC3156FlashBorrower.sol";
 
+import "forge-std/Test.sol";
 
 /**
  * @title
@@ -167,6 +168,13 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
             _mint(address(1), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens TODO//  address(0) => address(1) ,for ERC20Permit first MINIMUM_LIQUIDITY
         } else {
             liquidity = Math.min(amount0 * _totalSupply / _reserve0, amount1 * _totalSupply / _reserve1);
+            console.log("liquidity-test");
+            console.log("amount0",amount0);
+            console.log("amount1",amount1);
+            console.log("_totalSupply",_totalSupply);
+            console.log("amount0 * _totalSupply",amount0 * _totalSupply);
+            console.log("amount0 * _totalSupply / _reserve0",amount0 * _totalSupply / _reserve0);
+            console.log("amount1 * _totalSupply / _reserve1",amount1 * _totalSupply / _reserve1);
         }
         require(liquidity > 0, "UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
