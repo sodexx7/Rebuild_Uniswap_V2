@@ -22,6 +22,8 @@ import {IERC3156FlashBorrower} from "openzeppelin-contracts/contracts/interfaces
 
 import "forge-std/Test.sol";
 
+// import "forge-std/Test.sol";
+
 /**
  * @title
  * @author
@@ -47,19 +49,28 @@ import "forge-std/Test.sol";
  * delete:
  * 1. ERC20 related, permit related  IUniswapV2Pair UniswapV2ERC20
  * 2. flashloan   swap delete param (bytes calldata data), delete IUniswapV2Callee interface and related functions
- * 
- 
- 
-    some small tips:
+ *
+ *
+ *
+ *     some small tips:
  *  1. creat2: with arguments:
  *  // bytes memory bytecode = type(UniswapV2Pair).creationCode;
  *       bytes memory bytecode = abi.encodePacked(type(UniswapV2Pair).creationCode, abi.encode("Uniswap V2","UNI-V2"));
- *  
-    2. consider the uniswap use typescipt for uint test, add the corrospending uint test cases
+ *
+ *     2. consider the uniswap use typescipt for uint test, add the corrospending uint test cases
  * todo compare the differences between old and my current implementation for erc20 and
-
-
-    3. encode datas
+ *
+ *
+ *     3. encode datas
+ *
+ *
+ *     4.Maht points
+ *     1.how to decide the liqudity(First mint,second mint)?
+ *
+ *     2.how to calculate the amount of tokenB, given the amount of tokenA?
+ *
+ *     3.****
+ *         test case not work.
  */
 contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     // flash loan
@@ -168,13 +179,13 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
             _mint(address(1), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens TODO//  address(0) => address(1) ,for ERC20Permit first MINIMUM_LIQUIDITY
         } else {
             liquidity = Math.min(amount0 * _totalSupply / _reserve0, amount1 * _totalSupply / _reserve1);
-            console.log("liquidity-test");
-            console.log("amount0",amount0);
-            console.log("amount1",amount1);
-            console.log("_totalSupply",_totalSupply);
-            console.log("amount0 * _totalSupply",amount0 * _totalSupply);
-            console.log("amount0 * _totalSupply / _reserve0",amount0 * _totalSupply / _reserve0);
-            console.log("amount1 * _totalSupply / _reserve1",amount1 * _totalSupply / _reserve1);
+            // console.log("liquidity-test");
+            // console.log("amount0",amount0);
+            // console.log("amount1",amount1);
+            // console.log("_totalSupply",_totalSupply);
+            // console.log("amount0 * _totalSupply",amount0 * _totalSupply);
+            // console.log("amount0 * _totalSupply / _reserve0",amount0 * _totalSupply / _reserve0);
+            // console.log("amount1 * _totalSupply / _reserve1",amount1 * _totalSupply / _reserve1);
         }
         require(liquidity > 0, "UniswapV2: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
@@ -227,6 +238,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
             // scope for _token{0,1}, avoids stack too deep errors
             address _token0 = token0;
             address _token1 = token1;
+
             require(to != _token0 && to != _token1, "UniswapV2: INVALID_TO");
             if (amount0Out > 0) IERC20(_token0).safeTransfer(to, amount0Out); // optimistically transfer tokens  _safeTransfer(_token0, to, amount0Out);
             if (amount1Out > 0) IERC20(_token1).safeTransfer(to, amount1Out); // optimistically transfer tokens  _safeTransfer(_token1, to, amount1Out);
@@ -236,6 +248,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
         }
         uint256 amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
         uint256 amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
+
         require(amount0In > 0 || amount1In > 0, "UniswapV2: INSUFFICIENT_INPUT_AMOUNT");
         {
             // scope for reserve{0,1}Adjusted, avoids stack too deep errors
@@ -700,55 +713,55 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
 
 /**
  * test should pay attentaions checklist
- * 
+ *
  * 1. // todo, creat2 contract test
  *    2. factory related?
- *    3. 
+ *    3.
  *         //  abi.encodePacked(token0, token1)   address token0, address token1, the same as abi.encode(token0, token1)  address 160bits. 320bits?
  *          //  abi.encodePacked, truncate the tail.
- * 
- *    4. 
+ *
+ *    4.
  *                 // question
  *                 //  abi.encodePacked(token0, token1)   address token0, address token1, the same as abi.encode(token0, token1)  address 160bits. 320bits?
  *                 //  abi.encodePacked, truncate the tail.
- * 
+ *
  *                 // 1. create2, pehaps have some same address? 2. sometime the same salt?
  *                 // 2.
- * 
+ *
  *                 // 2. quesiton 2, in my understanding, the below contract can't be executed, because the contract was contracted and in one transaction ,and the transaction not end.
  *                 /**
  *   assembly {
  *         pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
  *     }
  *     IUniswapV2Pair(pair).initialize(token0, token1);
- *                  
- * 
- *     5. check fee whether or not need?   
- * 
- *     6. import adjust     
- * 
- *     7. how to express fee?   
- * 
+ *
+ *
+ *     5. check fee whether or not need?
+ *
+ *     6. import adjust
+ *
+ *     7. how to express fee?
+ *
  *     8. overflow updarre
- *             overflow is desired 
- * 
+ *             overflow is desired
+ *
  *     9.klist check?
  *         the math formula
- * 
+ *
  *     10. some design considerations
- * 
+ *
  *     11. fee two type fee
  *         swap fee, protocol fee
- * 
- *     12. 
+ *
+ *     12.
  *         scope for _token{0,1}, avoids stack too deep errors
- * 
+ *
  *     13.doing important
- * 
+ *
  *             3. when delete the flashswap, should adjust some logic,just one scenario, guarantee first send the tokens
- * 
+ *
  *     14, reference the orginal test case
- * 
+ *
  *
  *
  */

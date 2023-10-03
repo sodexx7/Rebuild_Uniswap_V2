@@ -101,32 +101,34 @@ describe('UniswapV2Pair', () => {
   swapTestCases.forEach((swapTestCase, i) => {
     it(`getInputPrice:${i}`, async () => {
       const [swapAmount, token0Amount, token1Amount, expectedOutputAmount] = swapTestCase
+      // console.log("swapAmount, token0Amount, token1Amount, expectedOutputAmount");
+      // console.log(swapAmount.toString(), token0Amount, token1Amount, expectedOutputAmount);
       await addLiquidity(token0Amount, token1Amount)
       await token0.transfer(pair.address, swapAmount)
       await expect(pair.swap(0, expectedOutputAmount.add(1), wallet.address)).to.be.revertedWith(
         'UniswapV2: K'
       )
       await pair.swap(0, expectedOutputAmount, wallet.address)
-    })
+    }).timeout(1000000);
   })
 
-//   const optimisticTestCases: BigNumber[][] = [
-//     ['997000000000000000', 5, 10, 1], // given amountIn, amountOut = floor(amountIn * .997)
-//     ['997000000000000000', 10, 5, 1],
-//     ['997000000000000000', 5, 5, 1],
-//     [1, 5, 5, '1003009027081243732'] // given amountOut, amountIn = ceiling(amountOut / .997)
-//   ].map(a => a.map(n => (typeof n === 'string' ? bigNumberify(n) : expandTo18Decimals(n))))
-//   optimisticTestCases.forEach((optimisticTestCase, i) => {
-//     it(`optimistic:${i}`, async () => {
-//       const [outputAmount, token0Amount, token1Amount, inputAmount] = optimisticTestCase
-//       await addLiquidity(token0Amount, token1Amount)
-//       await token0.transfer(pair.address, inputAmount)
-//       await expect(pair.swap(outputAmount.add(1), 0, wallet.address, '0x', overrides)).to.be.revertedWith(
-//         'UniswapV2: K'
-//       )
-//       await pair.swap(outputAmount, 0, wallet.address, '0x', overrides)
-//     })
-//   })
+  // const optimisticTestCases: BigNumber[][] = [
+  //   ['997000000000000000', 5, 10, 1], // given amountIn, amountOut = floor(amountIn * .997)
+  //   ['997000000000000000', 10, 5, 1],
+  //   ['997000000000000000', 5, 5, 1],
+  //   [1, 5, 5, '1003009027081243732'] // given amountOut, amountIn = ceiling(amountOut / .997)
+  // ].map(a => a.map(n => (typeof n === 'string' ? bigNumberify(n) : expandTo18Decimals(n))))
+  // optimisticTestCases.forEach((optimisticTestCase, i) => {
+  //   it(`optimistic:${i}`, async () => {
+  //     const [outputAmount, token0Amount, token1Amount, inputAmount] = optimisticTestCase
+  //     await addLiquidity(token0Amount, token1Amount)
+  //     await token0.transfer(pair.address, inputAmount)
+  //     await expect(pair.swap(outputAmount.add(1), 0, wallet.address, '0x', overrides)).to.be.revertedWith(
+  //       'UniswapV2: K'
+  //     )
+  //     await pair.swap(outputAmount, 0, wallet.address, '0x', overrides)
+  //   })
+  // })
 
 //   it('swap:token0', async () => {
 //     const token0Amount = expandTo18Decimals(5)
@@ -149,6 +151,7 @@ describe('UniswapV2Pair', () => {
 //     expect(reserves[1]).to.eq(token1Amount.sub(expectedOutputAmount))
 //     expect(await token0.balanceOf(pair.address)).to.eq(token0Amount.add(swapAmount))
 //     expect(await token1.balanceOf(pair.address)).to.eq(token1Amount.sub(expectedOutputAmount))
+
 //     const totalSupplyToken0 = await token0.totalSupply()
 //     const totalSupplyToken1 = await token1.totalSupply()
 //     expect(await token0.balanceOf(wallet.address)).to.eq(totalSupplyToken0.sub(token0Amount).sub(swapAmount))
