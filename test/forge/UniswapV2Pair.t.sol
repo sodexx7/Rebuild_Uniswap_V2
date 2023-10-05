@@ -64,6 +64,7 @@ contract UniswapV2PairTest is Test {
         6:test_SwapToken1AndCheck()
         7:test_burn() 
         8:test_burnReceivedAllTokens()
+        9:test_TAWP() 
      */
 
     /**
@@ -208,7 +209,7 @@ contract UniswapV2PairTest is Test {
             uint256 expectedOutputAmount1 = arrays_test[i][3];
             console.log(swapAmount);
             // vm.expectRevert(bytes("UniswapV2: K"));
-            SwapTest(swapAmount, liqudity, 0, expectedOutputAmount1 + 1);
+            SwapTest(swapAmount, liqudity, 0, expectedOutputAmount1);
             // rebuild the pool address
             uniswapV2Factory = new UniswapV2Factory(_feeToSetter);
             pairAddress = uniswapV2Factory.createPair(address(tokenA), address(tokenB));
@@ -410,26 +411,6 @@ contract UniswapV2PairTest is Test {
 
     }
 
-
-
-    function addLiquidity(uint256 token0Amount, uint256 token1Amount) private {
-        token0.transfer(pairAddress, token0Amount);
-        token1.transfer(pairAddress, token1Amount);
-        UniswapV2Pair(pairAddress).mint(address(this));
-    }
-
-    function SwapTest(
-        uint256 swapAmount,
-        uint256[2] memory liqudity,
-        uint256 expectedOutputAmount0,
-        uint256 expectedOutputAmount1
-    ) private {
-        addLiquidity(liqudity[0], liqudity[1]);
-        token0.transfer(pairAddress, swapAmount);
-        uniswapV2Pair.swap(expectedOutputAmount0, expectedOutputAmount1, address(this));
-    }
-
-
     function test_TAWP() public {
 
         uint256[2] memory liqudity = [3 * 10 ** token0.decimals(), 3 * 10 ** token1.decimals()];
@@ -477,8 +458,6 @@ contract UniswapV2PairTest is Test {
         console.log("priceFo20seconds",price0For20seconds);
         console.log("price1For20seconds",price1For20seconds);
 
-
-
         // questions:
         // how to use? which protocols use? 
         // how to prevent the manipulation by using TAWP. 
@@ -486,6 +465,29 @@ contract UniswapV2PairTest is Test {
 
         
     }
+
+
+ 
+
+    function addLiquidity(uint256 token0Amount, uint256 token1Amount) private {
+        token0.transfer(pairAddress, token0Amount);
+        token1.transfer(pairAddress, token1Amount);
+        UniswapV2Pair(pairAddress).mint(address(this));
+    }
+
+    function SwapTest(
+        uint256 swapAmount,
+        uint256[2] memory liqudity,
+        uint256 expectedOutputAmount0,
+        uint256 expectedOutputAmount1
+    ) private {
+        addLiquidity(liqudity[0], liqudity[1]);
+        token0.transfer(pairAddress, swapAmount);
+        uniswapV2Pair.swap(expectedOutputAmount0, expectedOutputAmount1, address(this));
+    }
+
+
+    
 
 
 

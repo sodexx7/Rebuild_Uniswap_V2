@@ -47,47 +47,29 @@ contract UniswapV2Factory is IUniswapV2Factory {
         feeToSetter = _feeToSetter;
     }
 
-    // create pair
-    // 0 check
-    // 1. check the two address can't be equal
-    // 2. check the two address can't be zero address
-    // 3. check the two address can't have be used for this pair. have been to make a pair, the trick: when judge the getPair[token0][token1] == address(0) also judge the
-    //  getPair[token1][token0] == address(0), because all set while creating the pair
-    // 4.
+/**
+    summary points:
+    1. create pair
+        1. check the two address can't be equal
+        2. check the two address can't be zero address
+        3. check the two address can't have be used for exist pair address, the trick: when judge the getPair[token0][token1] == address(0) also judge the getPair[token1][token0] == address(0), because all set while creating the pair
+    2. create2 code
+        1: the difference between create2 and create
+    3. why need cache token0 and token1?
+        1: save gas: warm access
+        2: oracle price desgin consideration: need to store the last price to caululate the TAWP. more details can see the whitepaper.
 
-    //  1 make pair
-    // 1. create2 code
-    //   by create2 code
-    //      the difference between create2 and create ???
-    //
-    // question
-    //  abi.encodePacked(token0, token1)   address token0, address token1, the same as abi.encode(token0, token1)  address 160bits. 320bits?
-    //  abi.encodePacked, truncate the tail.
 
-    // 1. create2, pehaps have some same address? 2. sometime the same salt?
-    // 2.
+    questions: TO CONFIRM
+    1: abi.encodePacked(token0, token1)   address token0, address token1, the same as abi.encode(token0, token1)  address 160bits. 320bits?
+     abi.encodePacked, truncate the tail.
 
-    // 2. quesiton 2, in my understanding, the below contract can't be executed, because the contract was contracted and in one transaction ,and the transaction not end.
-    /**
-     *   assembly {
-     *         pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
-     *     }
-     *     IUniswapV2Pair(pair).initialize(token0, token1);
-     */
+    2:in my understanding, the below contract can't be executed, because the contract was contracted and in one transaction ,and the transaction not end.
+    
+        assembly {
+              pair := create2(0, add(bytecode, 32), mload(bytecode), salt)
+          }
+         IUniswapV2Pair(pair).initialize(token0, token1);
+*/     
 
-    //
-
-    // https://www.evm.codes/#F5 doing??
-
-    // other consideration confirm
-    // the original desgin consideration
-    //  1: why need cache token0 and token1???
-    //  2:
-
-    // summary
-    // createPari
-    //  uniswapFactory main funciton, create pair and store all the pair, by array  address[] public allPairs;
-    // 1. create pair address, which specify the two token address. only the two token address.
-    //  how to get the pair address  getPair[token0][token1]
-    //
 }

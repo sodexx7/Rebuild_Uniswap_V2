@@ -11,6 +11,10 @@ import "openzeppelin-contracts/contracts/utils/Create2.sol";
 contract UniswapV2FactoryTest is Test {
     UniswapV2Factory uniswapV2Factory;
     address public _feeToSetter = address(30);
+    address spenderAddress = address(11);// permit test address
+
+    address pairAddress;
+    UniswapV2Pair pair;
 
     address[] public addresses =
         [address(0x1000000000000000000000000000000000000000), address(0x2000000000000000000000000000000000000000)];
@@ -21,9 +25,13 @@ contract UniswapV2FactoryTest is Test {
         uniswapV2Factory = new UniswapV2Factory(_feeToSetter);
         // console.log("uniswapV2Factory");
         // console.log(address(uniswapV2Factory));
+        
+        pairAddress = uniswapV2Factory.createPair(addresses[0], addresses[1]);
+        pair = UniswapV2Pair(pairAddress);
     }
 
     function testCreatPair() public {
+        // create pair
         bytes memory bytecode = abi.encodePacked(type(UniswapV2Pair).creationCode, abi.encode("Uniswap V2", "UNI-V2"));
         bytes32 salt = keccak256(abi.encodePacked(addresses[0], addresses[1]));
         console.log("abi.encodePacked(addresses[0],addresses[1])");
@@ -32,17 +40,16 @@ contract UniswapV2FactoryTest is Test {
         console.logBytes32(salt);
 
         address precompileAddress = getAddress(bytecode, salt, address(uniswapV2Factory));
-        address pariAddress = uniswapV2Factory.createPair(addresses[0], addresses[1]);
         console.log(precompileAddress);
-        console.log(pariAddress);
-        assertEq(precompileAddress, pariAddress);
+        console.log(pairAddress);
+        assertEq(precompileAddress, pairAddress);
 
         //  UniswapV2Pair test
-        assertEq(UniswapV2Pair(pariAddress).name(), "Uniswap V2");
-        assertEq(UniswapV2Pair(pariAddress).symbol(), "UNI-V2");
-        assertEq(UniswapV2Pair(pariAddress).factory(), address(uniswapV2Factory));
-        assertEq(UniswapV2Pair(pariAddress).token0(), addresses[0]);
-        assertEq(UniswapV2Pair(pariAddress).token1(), addresses[1]);
+        assertEq(pair.name(), "Uniswap V2");
+        assertEq(pair.symbol(), "UNI-V2");
+        assertEq(pair.factory(), address(uniswapV2Factory));
+        assertEq(pair.token0(), addresses[0]);
+        assertEq(pair.token1(), addresses[1]);
 
         // getPair test
         assertEq(uniswapV2Factory.getPair(addresses[0], addresses[1]), precompileAddress);
@@ -57,6 +64,41 @@ contract UniswapV2FactoryTest is Test {
         // address precompileAddress2 = getAddress(bytecode,salt,address(0x5FbDB2315678afecb367f032d93F642f64180aa3));
         // console.log("hardhat-create2 address");
         // console.log(precompileAddress2);
+    }
+    // doing 
+    function test_Permit() public {
+        bytes32 value = pair.DOMAIN_SEPARATOR();
+
+        bytes32 _TYPE_HASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+        bytes32 domain_separator_value = keccak256(abi.encode(_TYPE_HASH, keccak256(bytes("Uniswap V2")), keccak256(bytes("1")), block.chainid, pairAddress));
+        console.logBytes32(domain_separator_value);
+        assertEq(pair.DOMAIN_SEPARATOR(),domain_separator_value);
+
+        uint nounces = pair.nonces(address(this));
+        uint deadline = type(uint256).max;
+        uint approveAmount = 1*10**pair.decimals();
+
+        console.log("nounce",pair.nonces(address(this)));
+
+        bytes32 _PERMIT_TYPEHASH = keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+        bytes32 signMessageHash = keccak256(abi.encode(_PERMIT_TYPEHASH, address(this), spenderAddress, approveAmount, nounces, deadline));
+
+
+        (bytes32 r, bytes32 s, uint8 v) = splitSignature(signMessageHash);
+
+        pair.permit(address(this),spenderAddress,approveAmount,deadline,v,r,s);
+
+
+    //      await expect(token.permit(wallet.address, other.address, TEST_AMOUNT, deadline, v, hexlify(r), hexlify(s)))
+    //   .to.emit(token, 'Approval')
+    //   .withArgs(wallet.address, other.address, TEST_AMOUNT)
+    // expect(await token.allowance(wallet.address, other.address)).to.eq(TEST_AMOUNT)
+    // expect(await token.nonces(wallet.address)).to.eq(bigNumberify(1))
+
+       
+        
+
     }
 
     function testCreatPair3() private {
@@ -76,6 +118,34 @@ contract UniswapV2FactoryTest is Test {
         // NOTE: cast last 20 bytes of hash to address
 
         return address(uint160(uint256(hash)));
+    }
+
+
+    // Permint related functions reference:https://solidity-by-example.org/signature/
+    function splitSignature(
+        bytes32  sig
+    ) public pure returns (bytes32 r, bytes32 s, uint8 v) {
+        require(sig.length == 65, "invalid signature length");
+
+        assembly {
+            /*
+            First 32 bytes stores the length of the signature
+
+            add(sig, 32) = pointer of sig + 32
+            effectively, skips first 32 bytes of signature
+
+            mload(p) loads next 32 bytes starting at the memory address p into memory
+            */
+
+            // first 32 bytes, after the length prefix
+            r := mload(add(sig, 32))
+            // second 32 bytes
+            s := mload(add(sig, 64))
+            // final byte (first byte of the next 32 bytes)
+            v := byte(0, mload(add(sig, 96)))
+        }
+
+        // implicitly return (r, s, v)
     }
 
     /**
