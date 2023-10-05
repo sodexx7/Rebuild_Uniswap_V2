@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.21;
 
-// import "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 // openzeppelin-contracts/=lib/openzeppelin-contracts/
@@ -126,6 +125,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     }
 
     // update reserves and, on the first call per block, price accumulators
+    // ? how to guarantee the first call per block???
     function _update(uint256 balance0, uint256 balance1, uint112 _reserve0, uint112 _reserve1) private {
         require(balance0 <= type(uint112).max && balance1 <= type(uint112).max, "UniswapV2: OVERFLOW");
 
@@ -196,6 +196,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     }
 
     // this low-level function should be called from a contract which performs important safety checks
+    // dx = X (S/T )  dy = Y （S/T）
     function burn(address to) external lock returns (uint256 amount0, uint256 amount1) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
         address _token0 = token0; // gas savings
@@ -324,12 +325,8 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     {
         require(token == token0 || token == token1, "FlashLender: Unsupported currency");
 
-        //Is it necessary to check?
-        // require(amount <= maxFlashLoan(amount),"Beyond max amount to flashloan");
 
         uint256 fee = _flashFee(token, amount); // defalut 0.3%
-
-        (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
 
         // flashloan transfer no tips??
         IERC20(token).safeTransfer(address(receiver), amount);
@@ -339,19 +336,25 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
             "FlashLender: Callback failed"
         );
 
-        // Can the below function can success execute?, the borrower should grant the operations
+        // Can the below function can success execute?, the borrower should grant the operations, change,require borrower return the tokens
         IERC20(token).safeTransferFrom(address(receiver), address(this), amount + fee);
 
-        // how to check the balance change according to the uniswap v-2
+
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
         uint256 balance1 = IERC20(token1).balanceOf(address(this));
 
-        uint256 balance0Adjusted = token == token0 ? balance0 - fee : balance0;
-        uint256 balance1Adjusted = token == token1 ? balance1 - fee : balance1;
-        // todo, this implementation hava some problem?
-        require(balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * _reserve1, "UniswapV2: K");
 
-        // todo update reverse
+        /** TODO
+        check the balance change according to the uniswap v-2 x*y = k, but the below logic never can't execute， 
+        because the above code can guarantee the recevice toekn must greater than borrow token and fees has included.
+        but the desgin seems not consistant with the uniswap fee desgin.
+        */
+
+        // uint256 balance0Adjusted = token == token0 ? balance0 - fee : balance0;
+        // uint256 balance1Adjusted = token == token1 ? balance1 - fee : balance1;
+        // require(balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * _reserve1, "UniswapV2: K");
+
+        (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
         _update(balance0, balance1, _reserve0, _reserve1);
 
         emit FlashLoan(address(receiver), token, amount);
@@ -396,6 +399,23 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
         require(token == token0 || token == token1, "FlashLender: Unsupported currency");
         return IERC20(token).balanceOf(address(this));
     }
+
+    // test: override internal mint funcition. delete the zero address check
+    // can't  work, because can't access the _balances. So should change many places
+    // function _burn(address account, uint256 amount) private {
+    //     // require(account != address(0), "ERC20: mint to the zero address");
+
+    //     _beforeTokenTransfer(address(0), account, amount);
+
+    //     _totalSupply += amount;
+    //     unchecked {
+    //         // Overflow not possible: balance + amount is at most totalSupply + amount, which is checked above.
+    //         _balances[account] += amount;
+    //     }
+    //     emit Transfer(address(0), account, amount);
+
+    //     _afterTokenTransfer(address(0), account, amount);
+    // }
 }
 
 /**

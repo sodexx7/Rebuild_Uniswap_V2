@@ -10,22 +10,22 @@ import "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 import {ud, unwrap, UD60x18} from "prb-math/UD60x18.sol";
 
-import "../../src/libraries/UQ112x112.sol";
 
 contract UniswapV2PairTest is Test {
-    using UQ112x112 for uint224;
 
     address public _feeToSetter = address(0x30);
     address public pairAddress;
     address public lockAddress = address(0x1);
+    address public zeroAddress = address(0x0);
+
 
     TestERC20 tokenA;
     TestERC20 tokenB;
     // reorder tokenA tokenB by address
-    TestERC20 token0;
-    TestERC20 token1;
+    TestERC20 public  token0;
+    TestERC20 public token1;
 
-    UniswapV2Pair uniswapV2Pair;
+    UniswapV2Pair public uniswapV2Pair;
     UniswapV2Factory uniswapV2Factory;
 
     // test events
@@ -54,6 +54,17 @@ contract UniswapV2PairTest is Test {
         console.log("pairAddress", pairAddress);
         (token0, token1) = getOrderTestERC20(tokenA, tokenB);
     }
+    /**
+        Test functions
+        1:test_Mint()
+        2:test_AddLiquidity()
+        3:test_SwapNormalCases()
+        4:test_SwapCasesWithFees()
+        5:test_SwapToken0AndCheck()
+        6:test_SwapToken1AndCheck()
+        7:test_burn() 
+        8:test_burnReceivedAllTokens()
+     */
 
     /**
      *   https://book.getfoundry.sh/forge/cheatcodes, check the event
@@ -244,7 +255,7 @@ contract UniswapV2PairTest is Test {
         addLiquidity(liqudity[0], liqudity[1]);
         uint swapAmount = uint256(10 ** 18);
         // also a quesiton, can not figure out how to calculate the result
-        uint256 expectedOutputAmount = 1662497915624478906;
+        uint256 expectedOutputAmount = 1662497915624478906; //(liqudity[1]*swapAmount)/(swapAmount+liqudity[0])
         token0.transfer(pairAddress, swapAmount);
 
         // pair transfer the token1 to the this address
@@ -305,9 +316,101 @@ contract UniswapV2PairTest is Test {
         uint totalSupplyToken0 =  token0.totalSupply();
         uint totalSupplyToken1 =  token1.totalSupply();
         assertEq(token0.balanceOf(address(this)) ,totalSupplyToken0-liqudity[0]+expectedOutputAmount);
-        assertEq(token1.balanceOf(address(this)) ,totalSupplyToken0-liqudity[1]-swapAmount);
+        assertEq(token1.balanceOf(address(this)) ,totalSupplyToken1-liqudity[1]-swapAmount);
    
     }
+
+    // hints: because the MINIMUM_LIQUIDITY,received token0 and token1 will decrease 1000 TODO
+    // TODO,. TEST: which scenario will received all LP. how to receive all token0 and token1
+    // if after burn lp,  the left lp is greater than MINIMUM_LIQUIDITY, this scenario the burner will receve all token
+    function test_burn() public {
+        // init the pool
+        uint256[2] memory liqudity = [uint256(3 * 10 ** 18), uint256(3 * 10 ** 18)];
+        addLiquidity(liqudity[0], liqudity[1]);
+
+        // burn the liquidity
+        // first step: transfer the lp to the pairAddress
+        uint256 expectedReceivedLiquidity = Math.sqrt(liqudity[0] * liqudity[1])- uniswapV2Pair.MINIMUM_LIQUIDITY();
+        uniswapV2Pair.transfer(pairAddress,expectedReceivedLiquidity);
+        // second step: execute the burn function
+
+
+        // pair transfer the transfered liquidity to the zero address
+        emit Transfer(pairAddress, zeroAddress, expectedReceivedLiquidity);
+        // pair transfer the token0 and token1 to the test addres, because the MINIMUM_LIQUIDITY, 1000(token0)*1000(token1) lock forever 
+        emit Transfer(pairAddress, address(this), liqudity[0]-1000);
+        emit Transfer(pairAddress, address(this), liqudity[1]-1000);
+
+        // Sync the balance0 and balance1, the minium balance
+        emit Sync(uint112(1000),uint112(1000));
+
+        // check the swap event
+        emit Burn(pairAddress,liqudity[0]-1000, liqudity[0]-1000,address(this));
+        
+        uniswapV2Pair.burn(address(this));
+
+        // // check all kinds of balance
+        assertEq(uniswapV2Pair.balanceOf(address(this)),0);
+        assertEq(uniswapV2Pair.totalSupply(),uniswapV2Pair.MINIMUM_LIQUIDITY());
+
+        // at least left the minium amount of token0 and token1 
+        assertEq(token0.balanceOf(pairAddress) ,1000);
+        assertEq(token1.balanceOf(pairAddress) ,1000);
+
+        // check token0 and token1 balance for testAddress
+        uint totalSupplyToken0 =  token0.totalSupply();
+        uint totalSupplyToken1 =  token1.totalSupply();
+
+        assertEq(token0.balanceOf(address(this)) ,totalSupplyToken0-1000);
+        assertEq(token1.balanceOf(address(this)) ,totalSupplyToken1-1000);
+    }
+
+     function test_burnReceivedAllTokens() public {
+        // guarantee the MINIMUM_LIQUIDITY exists
+        test_burn(); 
+        console.log(" guarantee the MINIMUM_LIQUIDITY exists");
+        uint256[2] memory liqudity = [uint256(3 * 10 ** 18), uint256(3 * 10 ** 18)];
+        addLiquidity(liqudity[0], liqudity[1]);
+
+        // burn the liquidity
+        // first step: transfer the lp to the pairAddress
+        uint256 expectedReceivedLiquidity = Math.sqrt(liqudity[0] * liqudity[1]);
+        uniswapV2Pair.transfer(pairAddress,expectedReceivedLiquidity);
+        // second step: execute the burn function
+
+
+        // pair transfer the transfered liquidity to the zero address
+        emit Transfer(pairAddress, zeroAddress, expectedReceivedLiquidity);
+        // pair transfer the token0 and token1 to the test addres, because the MINIMUM_LIQUIDITY, 1000(token0)*1000(token1) lock forever 
+        emit Transfer(pairAddress, address(this), liqudity[0]);
+        emit Transfer(pairAddress, address(this), liqudity[1]);
+
+        // Sync the balance0 and balance1, the minium balance
+        emit Sync(uint112(1000),uint112(1000));
+
+        // check the swap event
+        emit Burn(pairAddress,liqudity[0], liqudity[0],address(this));
+        
+        uniswapV2Pair.burn(address(this));
+
+        // // check all kinds of balance
+        assertEq(uniswapV2Pair.balanceOf(address(this)),0);
+        assertEq(uniswapV2Pair.totalSupply(),uniswapV2Pair.MINIMUM_LIQUIDITY());
+
+        // at least left the minium amount of token0 and token1 
+        assertEq(token0.balanceOf(pairAddress) ,1000);
+        assertEq(token1.balanceOf(pairAddress) ,1000);
+
+        // check token0 and token1 balance for testAddress
+        uint totalSupplyToken0 =  token0.totalSupply();
+        uint totalSupplyToken1 =  token1.totalSupply();
+
+        assertEq(token0.balanceOf(address(this)) ,totalSupplyToken0-1000);
+        assertEq(token1.balanceOf(address(this)) ,totalSupplyToken1-1000);
+
+    }
+
+
 
     function addLiquidity(uint256 token0Amount, uint256 token1Amount) private {
         token0.transfer(pairAddress, token0Amount);
@@ -325,6 +428,66 @@ contract UniswapV2PairTest is Test {
         token0.transfer(pairAddress, swapAmount);
         uniswapV2Pair.swap(expectedOutputAmount0, expectedOutputAmount1, address(this));
     }
+
+
+    function test_TAWP() public {
+
+        uint256[2] memory liqudity = [3 * 10 ** token0.decimals(), 3 * 10 ** token1.decimals()];
+        addLiquidity(liqudity[0], liqudity[1]);
+        (uint256 price0CumulativeLast0,uint256 price1CumulativeLast0,uint32 blockTimestampStart) = uniswapV2Pair.getReserves();
+
+        vm.warp(blockTimestampStart + 1); // mint the next block
+        uniswapV2Pair.sync();// sync, calculated the elasped time
+
+        // first call the _update( sync after addLiquidity,sync will take the time to the TAMP's calculation )
+        (uint price0, uint price1) = calculatePrice(liqudity[0],liqudity[1]);
+        assertEq(uniswapV2Pair.price0CumulativeLast(),price0);
+        assertEq(uniswapV2Pair.price1CumulativeLast(),price1);
+        assertEq(blockTimestampStart,1);
+
+
+
+        // second call the_update(swap), the price should based on the last block's price
+        uint swapAmount = 3 * 10 ** token0.decimals();
+        token0.transfer(pairAddress,swapAmount);
+        vm.warp(blockTimestampStart + 10); // mint the next block
+        uint expectedOutputAmount1 = 1*10 ** token0.decimals();
+        uniswapV2Pair.swap(0, expectedOutputAmount1,address(this));  // swap to a new price eagerly instead of syncing
+        (,,uint32 blockTimestampAfterSwap) = uniswapV2Pair.getReserves();
+        assertEq(uniswapV2Pair.price0CumulativeLast(),price0*10);
+        assertEq(uniswapV2Pair.price1CumulativeLast(),price1*10);
+        assertEq(blockTimestampAfterSwap,blockTimestampStart+10);
+
+
+        // third call the _update
+        vm.warp(blockTimestampStart + 20); // mint the next block
+        uniswapV2Pair.sync();// sync, calculated the elasped time
+        
+        (uint price0Second, uint price1Second) = calculatePrice(liqudity[0]+swapAmount,liqudity[1]-expectedOutputAmount1);
+        (uint256 price0CumulativeLast3,uint256 price1CumulativeLast3,uint32 blockTimestampThirdUpdate) = uniswapV2Pair.getReserves();
+        assertEq(uniswapV2Pair.price0CumulativeLast(),price0*10+price0Second*10);
+        assertEq(uniswapV2Pair.price1CumulativeLast(),price1*10+price1Second*10);
+        assertEq(blockTimestampThirdUpdate,blockTimestampStart+20);
+
+
+        // According to the TAMP, calculating the price
+        // from blockTimestampStart =>blockTimestampStart+20
+        uint price0For20seconds = (price0CumulativeLast3 - price0CumulativeLast0)/(blockTimestampStart+20 - blockTimestampStart);
+        uint price1For20seconds = (price1CumulativeLast0 - price1CumulativeLast3 )/(blockTimestampStart+20 - blockTimestampStart);
+        console.log("priceFo20seconds",price0For20seconds);
+        console.log("price1For20seconds",price1For20seconds);
+
+
+
+        // questions:
+        // how to use? which protocols use? 
+        // how to prevent the manipulation by using TAWP. 
+        // the cost of attack. how to attack?
+
+        
+    }
+
+
 
     /**
      * 1. calculate expectedOutputAmount1
@@ -369,5 +532,11 @@ contract UniswapV2PairTest is Test {
         (address token0Address, address token1Address) =
             address(tokenA) < address(tokenB) ? (address(tokenA), address(tokenB)) : (address(tokenB), address(tokenA));
         return (TestERC20(token0Address), TestERC20(token1Address));
+    }
+
+
+    function calculatePrice(uint amount0,uint amount1) private returns(uint price0, uint price1 ){
+        console.log("amount1/amount0",amount1/amount0);
+        return (unwrap(ud(amount1) / ud(amount0)), unwrap(ud(amount0) / ud(amount1)));
     }
 }
