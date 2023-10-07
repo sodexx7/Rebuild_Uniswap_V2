@@ -17,12 +17,12 @@ import "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import {IERC3156FlashLender} from "openzeppelin-contracts/contracts/interfaces/IERC3156FlashLender.sol";
 import {IERC3156FlashBorrower} from "openzeppelin-contracts/contracts/interfaces/IERC3156FlashBorrower.sol";
 
-
 /**
  * @title
  * @author
  * @notice
  * @dev
+   checklist
    0. use solidity 0.8.21  delete SafeMath
  * 1. remove the  _safeTransfer and apply SafeERC20
  *      IERC20(_token0).safeTransfer(to, amount0);
@@ -44,9 +44,7 @@ import {IERC3156FlashBorrower} from "openzeppelin-contracts/contracts/interfaces
         bytes memory bytecode = abi.encodePacked(type(UniswapV2Pair).creationCode, abi.encode("Uniswap V2","UNI-V2"));
 
 
-   confirm 
- * the important tips: lock for swap,mint,burn,skim,sync
- *
+   other ignore points: lock for swap,mint,burn,skim,sync
  
  *  questions:
     1:how to calculate the amount of tokenB, given the amount of tokenA?
@@ -73,14 +71,9 @@ import {IERC3156FlashBorrower} from "openzeppelin-contracts/contracts/interfaces
     TODO
     1: forge build warn and errors checklist basic 
     2: calculate how much gas will be saved tests
-    3: What considerations do you need in your fixed point library? How much of a token with 18 decimals can your contract store?
     4: klist
-    5: the difference between Openzeppelin’s safeTransfer and uniswap safeTrasnfer
- *     Is uniswap safeTrasnfer have some problem?  not the check the address is contract
+    5:
 
- *
- *
- *
  */
 contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     // flash loan
@@ -247,13 +240,11 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
             require(to != _token0 && to != _token1, "UniswapV2: INVALID_TO");
             if (amount0Out > 0) IERC20(_token0).safeTransfer(to, amount0Out); // optimistically transfer tokens  _safeTransfer(_token0, to, amount0Out);
             if (amount1Out > 0) IERC20(_token1).safeTransfer(to, amount1Out); // optimistically transfer tokens  _safeTransfer(_token1, to, amount1Out);
-
             balance0 = IERC20(_token0).balanceOf(address(this));
             balance1 = IERC20(_token1).balanceOf(address(this));
         }
         uint256 amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
         uint256 amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
-
         require(amount0In > 0 || amount1In > 0, "UniswapV2: INSUFFICIENT_INPUT_AMOUNT");
         {
             // scope for reserve{0,1}Adjusted, avoids stack too deep errors
@@ -267,14 +258,11 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     }
 
     // force balances to match reserves
-    // how to test?
     function skim(address to) external lock {
         address _token0 = token0; // gas savings
         address _token1 = token1; // gas savings
         IERC20(_token0).safeTransfer(to, IERC20(_token0).balanceOf(address(this)) - reserve0);
         IERC20(_token1).safeTransfer(to, IERC20(_token1).balanceOf(address(this)) - reserve1);
-        // _safeTransfer(_token0, to, IERC20(_token0).balanceOf(address(this)) - reserve0 );
-        // _safeTransfer(_token1, to, IERC20(_token1).balanceOf(address(this)) - reserve1 );
     }
 
     // force reserves to match balances
@@ -305,7 +293,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
      *
      * other implementation. diffrerent current implementation
      *
-     * question?
+     * 
      * when the fee returned, have some effects on the formula k
      *
      */
@@ -326,23 +314,11 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
             "FlashLender: Callback failed"
         );
 
-        // Can the below function can success execute?, the borrower should grant the operations, change,require borrower return the tokens
+        // require the borrower must have enough tokens to let the lender transfer
         IERC20(token).safeTransferFrom(address(receiver), address(this), amount + fee);
-
 
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
         uint256 balance1 = IERC20(token1).balanceOf(address(this));
-
-
-        /** TODO
-        check the balance change according to the uniswap v-2 x*y = k, but the below logic never can't execute， 
-        because the above code can guarantee the recevice toekn must greater than borrow token and fees has included.
-        but the desgin seems not consistant with the uniswap fee desgin.
-        */
-
-        // uint256 balance0Adjusted = token == token0 ? balance0 - fee : balance0;
-        // uint256 balance1Adjusted = token == token1 ? balance1 - fee : balance1;
-        // require(balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * _reserve1, "UniswapV2: K");
 
         (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
         _update(balance0, balance1, _reserve0, _reserve1);
@@ -358,8 +334,6 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
      * @param amount The amount of tokens lent.
      * @return The amount of `token` to be charged for the loan, on top of the returned principal.
      *
-     * according to the uniswap-v2 fee desgin
-     *
      * amount * 3 / 1000 have precious problem? at least borrow 1000 
      *
      */
@@ -370,7 +344,6 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     }
 
     /**
-     * todo tokem how to use ??
      * @dev The fee to be charged for a given loan. Internal function with no checks.
      * @param token The loan currency.
      * @param amount The amount of tokens lent.
@@ -394,40 +367,13 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
 
 /**
 
-- You must use solidity 0.8.0 or higher, don’t use SafeMath done
-- Use an existing fixed point library, but don’t use the Uniswap one. done
-- Use Openzeppelin’s or Solmate’s safeTransfer instead of building it from scratch like Unisawp does done
-- Instead of implementing a flash swap the way Uniswap does, use EIP 3156. ********Be very careful at which point you update the reserves!******** done
-
-  flashloan:
-         1. Two interfaces, the sender, the receiver, the callback involved with the receiver
- *       2. some amount of token to send and replay...
- *       3. This implementation  how to transfer the token, the transfer approvel grant right?
- *       4. security considerations
- *             4.1 conditions check
- *             4.2  Flash lending security considerations. Automatic approvals 
- *        5. flashloan test should consider the security problems
-        6.the differences between ExampleFlashSwap and ERC-3156 borrowers inferface 
-    
-
-
- 
-       others:
-      
-          4. feeOn, whether or not set? todo
-       
-
-
-             consider the flashloan, how to calculate the result?
-             https://docs.uniswap.org/contracts/v2/guides/smart-contract-integration/using-flash-swaps#single-token
- 
-             reference: the blew formula
-             https://www.youtube.com/watch?v=QNPyFs8Wybk
-
-                Solmate’s implementation and openzepplion's implementation.
-                https://github.com/Rari-Capital
-                the section about the security
+reference:
+    https://docs.uniswap.org/contracts/v2/guides/smart-contract-integration/using-flash-swaps#single-token
+    https://github.com/Rari-Capital
+    the section about the security
                  https://eips.ethereum.org/EIPS/eip-3156
+    reference: the blew formula
+        https://www.youtube.com/watch?v=QNPyFs8Wybk
  *
  */
 

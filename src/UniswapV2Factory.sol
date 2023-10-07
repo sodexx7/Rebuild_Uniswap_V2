@@ -10,7 +10,7 @@ contract UniswapV2Factory is IUniswapV2Factory {
     mapping(address => mapping(address => address)) public getPair;
     address[] public allPairs;
 
-    constructor(address _feeToSetter) public {
+    constructor(address _feeToSetter)  {
         feeToSetter = _feeToSetter;
     }
 

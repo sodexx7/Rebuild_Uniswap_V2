@@ -1,42 +1,109 @@
-# <h1 align="center"> Hardhat x Foundry Template </h1>
 
-**Template repository for getting started quickly with Hardhat and Foundry in one project**
+## Environments 
+* This project apply Hardhat x Foundry Template for testing the new features by Foundry and can references the uniswap-v2 existed test cases.
+* The hardhat environment have been adjusted to the current version, as the v2 have been build for almost three years.
 
-![Github Actions](https://github.com/devanonon/hardhat-foundry-template/workflows/test/badge.svg)
+## Modify points(remake uniswap_v2)
+1. swap functions only support swap,don't support flashloan. 
+2. inherited the IERC3156 to implement the flashloan, which has sonme difference comparing to the uniswap_V2
+3. build the UniswapV2Pair by directly using ERC20Permit instead of UniswapV2ERC20. Now,just ignore the permit test
+4. Calculate the TAWP by using the prb-math/UD60x18.sol instead of uniswap_v2 library UQ112x112. 
+5. Other change points
+    1.  use solidity 0.8.21  delete SafeMath
+    2.  delete uniswap_v2 _safeTransfer, apply SafeERC20
 
-### Getting Started
+## Fixed point library considerations
+* What considerations do you need in your fixed point library? How much of a token with 18 decimals can your contract store?
 
- * Use Foundry: 
-```bash
-forge install
-forge test
-```
+    1. the fixed point library should consider how much decimals can have. For the prb, ud60x18 has 18 decimals and 60 digits.And based on that, do arithmetic operations while keep this precision. 
+    2. Because for my current desgin, which is same as the uniswap v2, also the type is uint112.
+       * uint112: 5192296858534827.     type(uint256).max/1e18
+       * If apply the uint256, the max token can as the below.
+       uint256: 115792089237316195423570985008687907853269984665640564039457                         type(uint256).max/1e18
 
- * Use Hardhat:
-```bash
-npm install
-npx hardhat test
-```
 
-### Features
 
- * Write / run tests with either Hardhat or Foundry:
-```bash
-forge test
-# or
-npx hardhat test
-```
+## Test cases:
+1. Adding liquidity
+    * test_Mint()
+    * test_AddLiquidity()
+2. Swapping
+    * test_SwapNormalCases()
+    * test_SwapCasesWithFees()
+    * test_SwapToken0AndCheck()
+    * test_SwapToken1AndCheck()
+3. Withdrawing liquidity
+    * test_burn() 
+    * test_burnReceivedAllTokens()
+4. Check TWAP
+    * test_TAWP()
+5. Taking a flashloan(just show the feature, no cover many corner cases)
+    * test_FlashBorrow()
+6. Permit functions, Now, just ignore
+    * test_Permit() 
+7. Calculate the exactly outputAmount by considering the fee 
+    * test_CalculateExpectOutputAmountWithFee()
 
- * Use Hardhat's task framework
-```bash
-npx hardhat example
-```
 
- * Install libraries with Foundry which work with Hardhat.
-```bash
-forge install rari-capital/solmate # Already in this repo, just an example
-```
+## Tips:
+1. how many dy while swaping dx?
+    
+    * Apply the below formulas, x,y means the balance of token0 and token1 in the last update. and dx,dy represent the increased or decreased amount 
+    for x or y.
 
-### Notes
+    ```
+    dx=  (x*dy) / (y + dx)
+    dy = (y*dx)/ (x+ dx)
 
-Whenever you install new libraries using Foundry, make sure to update your `remappings.txt` file by running `forge remappings > remappings.txt`. This is required because we use `hardhat-preprocessor` and the `remappings.txt` file to allow Hardhat to resolve libraries you install with Foundry.
+    ```
+
+    * x means the balance of token0,y means the balance of token1 in the last update, This is very important, For TAWP, this involved the security considerations.
+
+2. The pool should lock MINIMUM_LIQUIDITY forever.
+
+    * Increase the attacker cost. more detaisl can see the whitepaper:https://uniswap.org/whitepaper.pdf ( Initialization of liquidity token supply)
+
+    * This desgin is different from the v1, calculating the uniswap_v2 pairs's liquidity is represent by the formula: ```Math.sqrt(uint256(_reserve0) * (_reserve1)).```
+    This formula ensures that the value of a liquidity pool share at any time is essentially independent of the ratio at which liquidity was initially deposited.
+    
+    And this formula has more tricks, such as the desgin make the liquidity  linear grow while the pair token increasing.
+
+3. Some Math formula 
+
+    ````
+        Given conditions。 
+        X: amount of TokenA in AMM
+        Y: amount of TokenB in AMM
+        dx: amount of TokenA will in the AMM
+        dy: amount of TokenB will in the AMM
+        L0:Total liquidity before
+        L1:Total liquidity After
+        T: Total share before
+        S: share to mint
+
+        1. how many dy while swaping dx
+            dx= x*dy / (y + dx)
+            dy = y*dx/ (x+ dx)
+            
+        2. how many shares will mint while adding liquidity 
+            s = (dx/X) T=  (dy/Y) T
+
+        3. how many token will withdraw will remove  liquidity
+            dx = X (S/T )  dy = Y （S/T）
+
+    ```
+
+4. Security considerations  
+    1. TAWP price control
+    2. prevent price manipulate by  lock MINIMUM_LIQUIDITY 
+
+## Some small questions
+1.  The plances where the overflow is desired.
+2.  scope for _token{0,1}, avoids stack too deep errors
+    
+
+## TODO if time permits
+1.  the difference between Openzeppelin’s safeTransfer and uniswap safeTrasnfer
+    Is uniswap safeTrasnfer have some problem?  not the check the address is contract
+2. 
+

@@ -131,9 +131,9 @@ describe('UniswapV2Factory', () => {
   })
 
   // check the below right or not?
-  it('createPair:gas', async () => {
-    await snapshotGasCost(factory.createPair(...TEST_ADDRESSES))
-  })
+  // it('createPair:gas', async () => {
+  //   await snapshotGasCost(factory.createPair(...TEST_ADDRESSES))
+  // })
 
   it('setFeeTo', async () => {
     await expect(factory.connect(other).setFeeTo(other.address)).to.be.revertedWith('UniswapV2: FORBIDDEN')

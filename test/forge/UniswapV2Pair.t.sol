@@ -45,8 +45,8 @@ contract UniswapV2PairTest is Test {
     event Transfer(address indexed from, address indexed to, uint256 value);
 
     function setUp() public {
-        tokenA = new TestERC20(10000*10**18,'TOKENA','TA');
-        tokenB = new TestERC20(10000*10**18,'TOKENB','TB');
+        tokenA = new TestERC20(10000*1e18,'TOKENA','TA');
+        tokenB = new TestERC20(10000*1e18,'TOKENB','TB');
 
         uniswapV2Factory = new UniswapV2Factory(_feeToSetter);
         pairAddress = uniswapV2Factory.createPair(address(tokenA), address(tokenB));
@@ -65,6 +65,7 @@ contract UniswapV2PairTest is Test {
         7:test_burn() 
         8:test_burnReceivedAllTokens()
         9:test_TAWP() 
+        10:test_CalculateExpectOutputAmountWithFee()
      */
 
     /**
@@ -190,7 +191,7 @@ contract UniswapV2PairTest is Test {
      *     /expect test
      */
 
-    //  problem:  [1, 5, 10, 1662497915624478906], my calculated resut is: (10*1)*10**18/(5+1) = 1666666666666666666
+    //  problem:  [1, 5, 10, 1662497915624478906], my calculated resut is: (10*1)*1e18/(5+1) = 1666666666666666666
     //  given the pool, the swapAmount of token0, check the output Amount of token1 is right
     function test_SwapNormalCases() public {
         uint64[4][7] memory arrays_test = [
@@ -204,8 +205,8 @@ contract UniswapV2PairTest is Test {
         ];
         for (uint256 i = 0; i < arrays_test.length; i++) {
             uint256[2] memory liqudity =
-                [(arrays_test[i][1] * uint256(10 ** 18)), uint256(arrays_test[i][2]) * uint256(10 ** 18)];
-            uint256 swapAmount = uint256(arrays_test[i][0]) * uint256(10 ** 18);
+                [(arrays_test[i][1] * uint256(1e18)), uint256(arrays_test[i][2]) * uint256(1e18)];
+            uint256 swapAmount = uint256(arrays_test[i][0]) * uint256(1e18);
             uint256 expectedOutputAmount1 = arrays_test[i][3];
             console.log(swapAmount);
             // vm.expectRevert(bytes("UniswapV2: K"));
@@ -232,10 +233,10 @@ contract UniswapV2PairTest is Test {
         ];
         for (uint256 i = 0; i < arrays_test.length; i++) {
             uint256[2] memory liqudity =
-                [(arrays_test[i][1] * uint256(10 ** 18)), uint256(arrays_test[i][2]) * uint256(10 ** 18)];
+                [(arrays_test[i][1] * 1e18), uint256(arrays_test[i][2]) * 1e18];
 
-            uint256 swapAmount = i < 3 ? uint256(arrays_test[i][3]) * uint256(10 ** 18) : arrays_test[i][3];
-            uint256 expectedOutputAmount0 = i < 3 ? arrays_test[i][0] : arrays_test[i][0] ** uint256(10 ** 18);
+            uint256 swapAmount = i < 3 ? uint256(arrays_test[i][3]) * uint256(1e18) : arrays_test[i][3];
+            uint256 expectedOutputAmount0 = i < 3 ? arrays_test[i][0] : uint256(arrays_test[i][0]) ** uint256(1e18);
             SwapTest(swapAmount, liqudity, expectedOutputAmount0, 0);
 
             // rebuild the pool address
@@ -252,11 +253,12 @@ contract UniswapV2PairTest is Test {
     }
 
     function test_SwapToken0AndCheck() public {
-        uint256[2] memory liqudity = [uint256(5 * 10 ** 18), uint256(10 * 10 ** 18)];
+        
+        uint256[2] memory liqudity = [uint256(5 * 1e18), uint256(10 * 1e18)];
         addLiquidity(liqudity[0], liqudity[1]);
-        uint swapAmount = uint256(10 ** 18);
+        uint swapAmount = 1e18;
         // also a quesiton, can not figure out how to calculate the result
-        uint256 expectedOutputAmount = 1662497915624478906; //(liqudity[1]*swapAmount)/(swapAmount+liqudity[0])
+        uint256 expectedOutputAmount = 1662497915624478906; //(liqudity[1]*swapAmount)/(swapAmount+liqudity[0]) 1666666666666666666 1662497915624478906
         token0.transfer(pairAddress, swapAmount);
 
         // pair transfer the token1 to the this address
@@ -281,15 +283,15 @@ contract UniswapV2PairTest is Test {
         uint totalSupplyToken0 =  token0.totalSupply();
         uint totalSupplyToken1 =  token1.totalSupply();
         assertEq(token0.balanceOf(address(this)) ,totalSupplyToken0-liqudity[0]-swapAmount);
-        assertEq(token1.balanceOf(address(this)) ,totalSupplyToken0-liqudity[1]+expectedOutputAmount);
+        assertEq(token1.balanceOf(address(this)) ,totalSupplyToken1-liqudity[1]+expectedOutputAmount);
    
     }
 
     // just the opposite of the test_SwapToken0AndCheck
     function test_SwapToken1AndCheck() public {
-        uint256[2] memory liqudity = [uint256(5 * 10 ** 18), uint256(10 * 10 ** 18)];
+        uint256[2] memory liqudity = [uint256(5 * 1e18), uint256(10 * 1e18)];
         addLiquidity(liqudity[0], liqudity[1]);
-        uint swapAmount = uint256(10 ** 18);
+        uint swapAmount = uint256(1e18);
         // also a quesiton, can not figure out how to calculate the result
         uint256 expectedOutputAmount = 453305446940074565;
         token1.transfer(pairAddress, swapAmount);
@@ -326,7 +328,7 @@ contract UniswapV2PairTest is Test {
     // if after burn lp,  the left lp is greater than MINIMUM_LIQUIDITY, this scenario the burner will receve all token
     function test_burn() public {
         // init the pool
-        uint256[2] memory liqudity = [uint256(3 * 10 ** 18), uint256(3 * 10 ** 18)];
+        uint256[2] memory liqudity = [uint256(3 * 1e18), uint256(3 * 1e18)];
         addLiquidity(liqudity[0], liqudity[1]);
 
         // burn the liquidity
@@ -370,7 +372,7 @@ contract UniswapV2PairTest is Test {
         // guarantee the MINIMUM_LIQUIDITY exists
         test_burn(); 
         console.log(" guarantee the MINIMUM_LIQUIDITY exists");
-        uint256[2] memory liqudity = [uint256(3 * 10 ** 18), uint256(3 * 10 ** 18)];
+        uint256[2] memory liqudity = [uint256(3 * 1e18), uint256(3 * 1e18)];
         addLiquidity(liqudity[0], liqudity[1]);
 
         // burn the liquidity
@@ -487,58 +489,107 @@ contract UniswapV2PairTest is Test {
     }
 
 
-    
-
-
-
     /**
-     * 1. calculate expectedOutputAmount1
-     *     how many dy while swaping dx?
-     *     dx=  x*dy / y + dx
-     *     dy = y*dx/ (x+ dx)
-     * 
-     *     should consider the fees
+        1. calculate expectedOutputAmount1
+          how many dy while swaping dx?
+          dx=  x*dy / y + dx
+          dy = y*dx/ (x+ dx)
+      
+        For the test case:[1, 5, 10, 1662497915624478906], which means pool has token0:5*1e18 and token1:10*1e18, one want swap 1*1e18 token0 to token1
+        By using the formula:dy = y*dx/ (x+ dx) nomatter using the solidty bulit-in operations or UD60x18 operations. both of the result is:1666666666666666666
+
+        if the swap don't consider the fee, the result can passed. 8333333333333333333(10000000000000000000-1666666666666666666)*6000000000000000000 > 50000000000000000000000000000000000000
+
+        if the swap consider the fee, so the actual ouputAmount should less than the above result.
+        Because uniswap use the below formula to check,and  if get actual amount1In, which involved many operations and become very complex.
+            uint256 balance0Adjusted = balance0 * 1000 - amount0In * 3;
+            uint256 balance1Adjusted = balance1 * 1000 - amount1In * 3;
+            (balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * _reserve1 * (1000 ** 2)
+
+        This function just use brute force to calculate the expectoutputAmount when consider the fee 
+        
      */
+    function test_CalculateExpectOutputAmountWithFee() public {
 
-    function test_calculateExpectedOutputAmount1() public {
-        uint256[2] memory liqudity = [uint256(10 * 10 ** 18), uint256(5 * 10 ** 18)];
+        // the init pool
+        uint256[2] memory liqudity = [uint256(5 * 1e18), uint256(10 * 1e18)];
+
+        // dy = y*dx/ (x+ dx)
+        uint token0Amount = 1 * 1e18;
+        uint expectedOutputAmount1 = (liqudity[1]*token0Amount)/(liqudity[0]+token0Amount);
+        console.log("my result for token0Amount:",expectedOutputAmount1);
+
+        // use 60*18 to calculate
+        UD60x18 x = ud(liqudity[0]);
+        UD60x18 y = ud(liqudity[1]);
+        UD60x18 dx = ud(token0Amount);
+        UD60x18 result =(y.mul(dx)).div(dx.add(x));
+        console.log("use UD60x18 to calculate result",unwrap(result));
+        // calcauting balance0*balance1  after transfer token0 for token0Amount and par transfer token1 for expectedOutputAmount1
+        console.log("balance0*balance1 after transfer",(liqudity[1]-expectedOutputAmount1)*(liqudity[0]+token0Amount));
+
+        // test swap
         addLiquidity(liqudity[0], liqudity[1]);
-
-        uint256 swapAmount = 1 * 10 ** 18;
-        (uint112 _x, uint112 _y,) = uniswapV2Pair.getReserves();
-        token0.transfer(pairAddress, swapAmount);
-
-        //  453305446940074565
-        uint256 expectedOutputAmount1 = 453305446940074565; // 1666666666666666667 1662497915624478906  the most expectedOutputAmount1:1662497915624478906
+        token0.transfer(pairAddress, token0Amount);
+        vm.expectRevert(bytes("UniswapV2: K")); //if consider the fee, my result should decrease some number.
         uniswapV2Pair.swap(0, expectedOutputAmount1, address(this));
-    }
 
-    function test_calculateExpectedOutputAmount12() public {
-        uint256[2] memory liqudity = [uint256(10 * 10 ** 18), uint256(5 * 10 ** 18)];
-        addLiquidity(liqudity[0], liqudity[1]);
 
-        UD60x18 dx = ud(1 * 10 ** 18);
-        (uint112 _x, uint112 _y,) = uniswapV2Pair.getReserves();
-        UD60x18 x = ud(uint256(_x));
-        UD60x18 y = ud(uint256(_y));
+        // after transfer token0
+        uint afterBalance0 = liqudity[0]+token0Amount;
+        // when consider the fee,should derease how many number to satisfy the consideraton of fee
+        uint howmanyNumber;
+        // uint afterBalance1 = liqudity[1] - (expectedOutputAmount1-howmanyNumber);
 
-        UD60x18 dy = (x.mul(dx)) / (y.add(dx));
-        console.log(unwrap(dy));
+        // after transfer token0,consider the fee
+        uint balance0Adjusted = afterBalance0 * 1000 - token0Amount * 3;
+
+        // uint256 balance1Adjusted = (liqudity[1] - (expectedOutputAmount1-howmanyNumber)) * 1000;
+
+        howmanyNumber = 4168751042187700; // consider the gas limit, from this number begin to calculate
+        while(balance0Adjusted*((liqudity[1] - (expectedOutputAmount1-howmanyNumber)) * 1000) <= (liqudity[0]*liqudity[1])*((1000 ** 2))){
+            // gap:1495831248957812240
+            howmanyNumber++;
+            // console.log("howmanynumber",howmanyNumber);
+
+        }
+         console.log("expect howmanynumber",howmanyNumber);
+         console.log(expectedOutputAmount1-howmanyNumber);
+         uniswapV2Pair.swap(0, expectedOutputAmount1-howmanyNumber, address(this));
+
     }
 
     // reorder address
-    function getOrderTestERC20(TestERC20 tokenA, TestERC20 tokenB)
-        private
-        returns (TestERC20 token0, TestERC20 token1)
+    function getOrderTestERC20(TestERC20 _tokenA, TestERC20 _tokenB)
+        private view
+        returns (TestERC20 _token0, TestERC20 _token1)
     {
         (address token0Address, address token1Address) =
-            address(tokenA) < address(tokenB) ? (address(tokenA), address(tokenB)) : (address(tokenB), address(tokenA));
+            address(_tokenA) < address(tokenB) ? (address(_tokenA), address(_tokenB)) : (address(_tokenB), address(_tokenA));
         return (TestERC20(token0Address), TestERC20(token1Address));
     }
 
 
-    function calculatePrice(uint amount0,uint amount1) private returns(uint price0, uint price1 ){
+    function calculatePrice(uint amount0,uint amount1) private view returns(uint price0, uint price1 ){
         console.log("amount1/amount0",amount1/amount0);
         return (unwrap(ud(amount1) / ud(amount0)), unwrap(ud(amount0) / ud(amount1)));
+    }
+
+
+    function test_Others() view public {
+        console.log("type(uint112).max",type(uint112).max);
+        console.log("type(uint256).max",type(uint256).max);
+
+        // uMAX_UD60x18 / uUNIT
+        // 1e18
+        console.log(1e18);
+        console.log(1e18);
+        console.log("uint256 max number");
+        console.log(type(uint256).max/1e18);
+        console.log("uint112 max number");
+        console.log(type(uint112).max/1e18);
+
+        console.log(2**112);
+
     }
 }

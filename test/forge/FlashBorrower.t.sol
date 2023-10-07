@@ -44,6 +44,12 @@ contract FlashBorrowerTest is Test {
 
     }
 
+    /**
+        Fee considerations:
+        when the borrower do the flashloan,should add the fee returned, this is difference from the uniswap_v2 desgin, which decrease the borrow while lending
+
+        just for simple, ignore the the consistant between flashloan's fee and swap's fee 
+     */
     function test_FlashBorrow() public {
 
         console.log("the valid balance:");
@@ -63,15 +69,7 @@ contract FlashBorrowerTest is Test {
         // after borrow， check the balance
         assertEq(lenderToken0.balanceOf(address(flashBorrower)),0);
 
-
         // beyond max borrow
-
-
-
-        // consider the MINIMUM_LIQUIDITY
-
-
-
     }
 }
 
@@ -110,7 +108,7 @@ contract FlashBorrower is IERC3156FlashBorrower {
         console.log("received amount:",ERC20Permit(token).balanceOf(address(this))-beforeBorrowBalance);
         (Action action) = abi.decode(data, (Action));
         if (action == Action.ARBITRAGE_TRADING) {
-            console.log("Can do ARBITRAGE_TRADING while in this stage");
+            console.log("Can do ARBITRAGE_TRADING while in this stage,received token amount,",amount);
         } 
         return keccak256("ERC3156FlashBorrower.onFlashLoan");
     }

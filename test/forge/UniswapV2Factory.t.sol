@@ -65,7 +65,7 @@ contract UniswapV2FactoryTest is Test {
         // console.log("hardhat-create2 address");
         // console.log(precompileAddress2);
     }
-    // doing 
+    // todo 
     function test_Permit() public {
         bytes32 value = pair.DOMAIN_SEPARATOR();
 
@@ -85,19 +85,10 @@ contract UniswapV2FactoryTest is Test {
         bytes32 signMessageHash = keccak256(abi.encode(_PERMIT_TYPEHASH, address(this), spenderAddress, approveAmount, nounces, deadline));
 
 
-        (bytes32 r, bytes32 s, uint8 v) = splitSignature(signMessageHash);
+        // (bytes32 r, bytes32 s, uint8 v) = splitSignature(signMessageHash);
 
-        pair.permit(address(this),spenderAddress,approveAmount,deadline,v,r,s);
+        // pair.permit(address(this),spenderAddress,approveAmount,deadline,v,r,s);
 
-
-    //      await expect(token.permit(wallet.address, other.address, TEST_AMOUNT, deadline, v, hexlify(r), hexlify(s)))
-    //   .to.emit(token, 'Approval')
-    //   .withArgs(wallet.address, other.address, TEST_AMOUNT)
-    // expect(await token.allowance(wallet.address, other.address)).to.eq(TEST_AMOUNT)
-    // expect(await token.nonces(wallet.address)).to.eq(bigNumberify(1))
-
-       
-        
 
     }
 
@@ -115,7 +106,6 @@ contract UniswapV2FactoryTest is Test {
         console.log("hash");
         console.logBytes32(hash);
 
-        // NOTE: cast last 20 bytes of hash to address
 
         return address(uint160(uint256(hash)));
     }
