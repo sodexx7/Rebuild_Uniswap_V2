@@ -100,10 +100,20 @@
 ## Some small questions
 1.  The plances where the overflow is desired.
 2.  scope for _token{0,1}, avoids stack too deep errors
-    
+    to tead
+    * https://levelup.gitconnected.com/stack-too-deep-error-in-solidity-ca83326ff0f0
+
+3. Have some relationships with https://eips.ethereum.org/EIPS/eip-4626?
 
 ## TODO if time permits
 1.  the difference between Openzeppelin’s safeTransfer and uniswap safeTrasnfer
-    Is uniswap safeTrasnfer have some problem?  not the check the address is contract
-2. 
+    * Is uniswap safeTrasnfer have some problem?  not the check the address is contract
+2. other stuffs relarted the desgin
+    * lastK
+
+## To read
+* https://ethereum.org/sr/developers/tutorials/uniswap-v2-annotated-code/
+
+
+
 
