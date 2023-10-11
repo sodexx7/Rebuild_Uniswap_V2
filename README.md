@@ -105,6 +105,7 @@
 
 3. Have some relationships with https://eips.ethereum.org/EIPS/eip-4626?
 
+
 ## TODO if time permits
 1.  the difference between Openzeppelin’s safeTransfer and uniswap safeTrasnfer
     * Is uniswap safeTrasnfer have some problem?  not the check the address is contract
@@ -117,3 +118,16 @@
 
 
 
+## Plus
+* change the uniswap_v2 Lock to the ReentrancyGuard(openzepplin), which saves more gas. 
+* overflow is desired
+    ```
+    unchecked {
+             timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired 
+        }
+    ```
+   
+    the reason why overflow is desired, because even overflow will happen, and the price{0,1}CumulativeLast will also work, just the user notice the overflow interval time. when use it should consider this situation.
+
+    But This leads to a question about my code, because there is no overflow, so when time has passed until 2**32-1 and then update the blockTimeStamp. The scary thing will happen, The next time the actual blockTimeStamp will less than the blockTimeStamp. So the code almost will never go through .
+    So one solution is just as uniswap v2 , make the overflow desired.

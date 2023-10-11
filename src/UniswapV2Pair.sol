@@ -17,6 +17,9 @@ import "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import {IERC3156FlashLender} from "openzeppelin-contracts/contracts/interfaces/IERC3156FlashLender.sol";
 import {IERC3156FlashBorrower} from "openzeppelin-contracts/contracts/interfaces/IERC3156FlashBorrower.sol";
 
+import {ReentrancyGuard} from "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
+
+
 /**
  * @title
  * @author
@@ -75,7 +78,7 @@ import {IERC3156FlashBorrower} from "openzeppelin-contracts/contracts/interfaces
     5:
 
  */
-contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
+contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender,ReentrancyGuard {
     // flash loan
     bytes32 public constant CALLBACK_SUCCESS = keccak256("ERC3156FlashBorrower.onFlashLoan");
     // uint256 public fee; //  1 == 0.01 %. should adjust based on the uniswap_v2 flashloan fee
@@ -99,13 +102,6 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     uint256 private unlocked = 1;
 
     event FlashLoan(address indexed borrower, address indexed token, uint256 amount);
-
-    modifier lock() {
-        require(unlocked == 1, "UniswapV2: LOCKED");
-        unlocked = 0;
-        _;
-        unlocked = 1;
-    }
 
     function getReserves() public view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) {
         _reserve0 = reserve0;
@@ -132,7 +128,12 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
         require(balance0 <= type(uint112).max && balance1 <= type(uint112).max, "UniswapV2: OVERFLOW");
 
         uint32 blockTimestamp = uint32(block.timestamp % 2 ** 32);
-        uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired TODO???
+        uint32 timeElapsed;
+        
+        unchecked {
+             timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired 
+        }
+        
         if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
             // * never overflows, and + overflow is desired
             // the orginal uniswap desgin: uint112=>uint256=> UD60x18(operations)=> uint
@@ -167,7 +168,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     }
 
     // this low-level function should be called from a contract which performs important safety checks
-    function mint(address to) external lock returns (uint256 liquidity) {
+    function mint(address to) external nonReentrant returns (uint256 liquidity) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
         uint256 balance1 = IERC20(token1).balanceOf(address(this));
@@ -193,7 +194,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
 
     // this low-level function should be called from a contract which performs important safety checks
     // dx = X (S/T )  dy = Y （S/T）
-    function burn(address to) external lock returns (uint256 amount0, uint256 amount1) {
+    function burn(address to) external nonReentrant returns (uint256 amount0, uint256 amount1) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
         address _token0 = token0; // gas savings
         address _token1 = token1; // gas savings
@@ -225,7 +226,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     
      */
 
-    function swap(uint256 amount0Out, uint256 amount1Out, address to) external lock {
+    function swap(uint256 amount0Out, uint256 amount1Out, address to) external nonReentrant {
         require(amount0Out > 0 || amount1Out > 0, "UniswapV2: INSUFFICIENT_OUTPUT_AMOUNT");
         (uint112 _reserve0, uint112 _reserve1,) = getReserves(); // gas savings
         require(amount0Out < _reserve0 && amount1Out < _reserve1, "UniswapV2: INSUFFICIENT_LIQUIDITY");
@@ -258,7 +259,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     }
 
     // force balances to match reserves
-    function skim(address to) external lock {
+    function skim(address to) external nonReentrant {
         address _token0 = token0; // gas savings
         address _token1 = token1; // gas savings
         IERC20(_token0).safeTransfer(to, IERC20(_token0).balanceOf(address(this)) - reserve0);
@@ -266,7 +267,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
     }
 
     // force reserves to match balances
-    function sync() external lock {
+    function sync() external nonReentrant {
         _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)), reserve0, reserve1);
     }
 
@@ -297,7 +298,7 @@ contract UniswapV2Pair is ERC20Permit, IUniswapV2Pair, IERC3156FlashLender {
      * when the fee returned, have some effects on the formula k
      *
      */
-    function flashLoan(IERC3156FlashBorrower receiver, address token, uint256 amount, bytes calldata data)
+    function flashLoan(IERC3156FlashBorrower receiver, address token, uint256 amount, bytes calldata data) nonReentrant
         external
         returns (bool)
     {
